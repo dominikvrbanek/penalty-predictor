@@ -1,0 +1,1 @@
+AI penalty kick prediction before the shot is taken. The pipeline consists of: Yt-dlp for pulling footage, OpenCV for frame extraction, Label Studio for annotation and YOLOv8-pose + LSTM for the prediction model on the labeled data.
