@@ -1,0 +1,56 @@
+# --- PyTorch (CUDA 12.6 build for RTX 4050) ---
+# --extra-index-url ADDS this index alongside PyPI (unlike --index-url, which
+# replaces PyPI entirely and breaks lookup of every other package).
+--extra-index-url https://download.pytorch.org/whl/cu126
+torch==2.13.0
+torchvision==0.28.0
+# torchaudio removed - not needed for this project (no audio processing)
+
+# --- Core CV / ML pipeline ---
+ultralytics==8.4.110
+ultralytics-thop==2.1.2
+# ultralytics' metadata hard-requires a package literally named opencv-python,
+# even though opencv-contrib-python provides the same cv2 module at runtime -
+# pip's resolver checks the name, not functional equivalence. Both installed
+# together is the known-working combo (this is what your original freeze had).
+opencv-python==5.0.0.93
+opencv-contrib-python==5.0.0.93
+mediapipe==1.0.0
+numpy==2.4.4
+nvidia-ml-py==13.610.43
+
+# --- Data collection / annotation ---
+yt-dlp==2026.7.4
+label-studio==1.23.0
+label-studio-sdk==2.0.18
+
+# --- Experiment tracking ---
+wandb==0.28.1
+
+# --- Utilities ---
+requests==2.32.5
+tqdm==4.70.0
+pillow==12.2.0
+matplotlib==3.11.1
+psutil==7.2.2
+PyJWT==2.13.0
+python-json-logger==2.0.4
+rich==15.0.0
+
+# --- Packages originally installed via conda (now pinned to actual versions) ---
+pandas==3.0.3
+PyYAML==6.0.3
+certifi==2026.6.17
+cffi==2.1.0
+charset-normalizer==3.4.7
+idna==3.18
+pycparser==3.0
+python-dateutil==2.9.0.post0
+six==1.17.0
+tzdata==2026.2
+urllib3==2.7.0
+brotlicffi==1.2.0.0
+
+# Note: PySocks, gmpy2, mkl_fft, mkl_random, and win_inet_pton were dropped -
+# `pip show` confirmed nothing in this project actually requires them
+# (they came along with conda's base numpy/MKL toolchain, "Required-by: " was empty).
