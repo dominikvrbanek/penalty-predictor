@@ -2,7 +2,9 @@
 import cv2
 import os
 import time
+import json
 
+# Video file name to look for in the raw data directory. 
 VIDEO_FILE = "All Penalties In Regular Time FIFA World Cup 2026.mp4"
 
 
@@ -71,7 +73,16 @@ while True:
     key = cv2.waitKey(1) & 0xFF
 
     if key == ord('q'):
+        # Save a JSON file with the timestamps upon quiting so that exract_clips.py can read it directly
+        output_json = os.path.join("data", "timestamps.json")
+        # Pair up timestamps into (start, end) tuples
+        paired_timestamps = [(timestamps[i], timestamps[i + 1]) for i in range(0, len(timestamps) - 1, 2)]
+        with open(output_json, "w") as f:
+            json.dump(paired_timestamps, f, indent=4)
+        print(f"\nTimestamps saved to {output_json}")
+
         break
+    
     elif key == ord(' '):
         timestamps.append(round(current_sec, 2))
         print(f"Marked: {current_sec:.2f}s")
