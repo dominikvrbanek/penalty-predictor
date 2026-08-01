@@ -21,6 +21,10 @@ print("  Direction (L/C/R) from the keeper's perspective")
 print("  Foot: l (left) / r (right) used to take the penalty\n")
 
 os.makedirs(CLIPS_DIR, exist_ok=True)
+# Start clip IDs after the last existing clip in the clips directory
+existing_clips = [f for f in os.listdir(CLIPS_DIR) if f.lower().endswith(".mp4")]
+existing_ids = [int(f.split("_")[1].split(".")[0]) for f in existing_clips] if existing_clips else [-1]
+next_id = max(existing_ids) + 1 if existing_ids else 1
 
 
 
@@ -44,11 +48,13 @@ def extract_clip(video_path, start_sec, end_sec, clip_id):
     print(f"Saved: {output_path}")
     return output_path
 
-with open(LABELS_FILE, "w", newline="") as f:
+file_exists = os.path.exists(LABELS_FILE)
+with open(LABELS_FILE, "a", newline="") as f:
     writer = csv.writer(f)
-    writer.writerow(["clip_id", "clip_path", "direction", "foot", "start_time", "end_time"])
+    if not file_exists:
+        writer.writerow(["clip_id", "clip_path", "direction", "foot", "start_time", "end_time"])
 
-    video_file = os.path.join(RAW_DIR, "All Penalties In Regular Time FIFA World Cup 2026.mp4")
+    video_file = os.path.join(RAW_DIR, "EVERY Penalty SCORED In The Premier League 2023-24.mp4")
 
     for i, (start, end) in enumerate(pairs):
         print(f"\nProcessing Penalty {i+1}: Start={start}s, End={end}s")
@@ -57,8 +63,8 @@ with open(LABELS_FILE, "w", newline="") as f:
         foot = "left" if foot == "l" else "right" if foot == "r" else "unknown"
 
 
-        path = extract_clip(video_file, start, end, i)
-        writer.writerow([i, path, direction, foot, start, end])
+        path = extract_clip(video_file, start, end, next_id + i)
+        writer.writerow([next_id + i, path, direction, foot, start, end])
         print(f"Saved Penalty {i+1}: Direction={direction}, Foot={foot}, Start={start}s, End={end}s")
 
 print(f"\nExtracted {len(pairs)} clips. Labels saved to {LABELS_FILE}") 
