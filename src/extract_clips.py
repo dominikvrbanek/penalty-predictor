@@ -22,39 +22,33 @@ print("  Foot: l (left) / r (right) used to take the penalty\n")
 
 os.makedirs(CLIPS_DIR, exist_ok=True)
 
+
+
+import subprocess
+# attempting to useuse ffmpeg directly via Python's subprocess 
 def extract_clip(video_path, start_sec, end_sec, clip_id):
-    cap = cv2.VideoCapture(video_path)
-    fps = cap.get(cv2.CAP_PROP_FPS)
-
-    start_frame = int(start_sec * fps)
-    end_frame = int(end_sec * fps)
-
     output_path = os.path.join(CLIPS_DIR, f"clip_{clip_id:03d}.mp4")
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    out = cv2.VideoWriter(output_path, fourcc, fps,
-                          (w, h))
-
-    cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
-
-    for _ in range(end_frame - start_frame):
-        ret, frame = cap.read()
-        if not ret: 
-            break
-        out.write(frame)
-
-    cap.release()
-    out.release()
+    duration = end_sec - start_sec
+    
+    subprocess.run([
+        "ffmpeg", "-y",
+        "-ss", str(start_sec),
+        "-i", video_path,
+        "-t", str(duration),
+        "-c:v", "libx264",   # H.264, universally supported
+        "-c:a", "aac",
+        "-loglevel", "error", # suppress ffmpeg spam
+        output_path
+    ], check=True)
+    
     print(f"Saved: {output_path}")
     return output_path
-
 
 with open(LABELS_FILE, "w", newline="") as f:
     writer = csv.writer(f)
     writer.writerow(["clip_id", "clip_path", "direction", "foot", "start_time", "end_time"])
 
-    video_file = os.path.join(RAW_DIR, "All Penalties In Regular Time | FIFA World Cup 2026™.mp4")
+    video_file = os.path.join(RAW_DIR, "All Penalties In Regular Time FIFA World Cup 2026.mp4")
 
     for i, (start, end) in enumerate(pairs):
         print(f"\nProcessing Penalty {i+1}: Start={start}s, End={end}s")
