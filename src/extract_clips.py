@@ -54,7 +54,7 @@ with open(LABELS_FILE, "a", newline="") as f:
     if not file_exists:
         writer.writerow(["clip_id", "clip_path", "direction", "foot", "start_time", "end_time"])
 
-    video_file = os.path.join(RAW_DIR, "EVERY Penalty SCORED In The Premier League 2023-24.mp4")
+    video_file = os.path.join(RAW_DIR, "worldcup2026_30fps.mp4")
 
     for i, (start, end) in enumerate(pairs):
         print(f"\nProcessing Penalty {i+1}: Start={start}s, End={end}s")
