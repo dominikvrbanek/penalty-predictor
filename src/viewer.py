@@ -5,7 +5,7 @@ import time
 import json
 
 # Video file name to look for in the raw data directory.
-VIDEO_FILE = "Morocco vs Spain - Full Penalty Shootout FIFA World Cup 2022_30fps.mp4"
+VIDEO_FILE = "Paraguay v Japan - Full Penalty Shoot-out - 2010 FIFAWorldCup Round of 16_30fps.mp4"
 
 
 def get_project_root():
