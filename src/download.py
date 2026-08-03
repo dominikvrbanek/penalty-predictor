@@ -8,6 +8,7 @@ os.makedirs(SAVE_DIR, exist_ok=True)
 def download_video(url, output_path):
     ydl_opts = {
         'outtmpl': output_path,
+        #'cookiesfrombrowser': ('edge', "Profile1"),  # Change 'edge' to your browser if needed
         'format': 'bestvideo+bestaudio/best',
         'merge_output_format': 'mp4',
     }
@@ -17,8 +18,8 @@ def download_video(url, output_path):
 
 def main():
     # Example usage
-    video_url = "https://youtu.be/yF5mHzhRBWE?si=NnI0NryJ1Jmkv94u"  # Replace with your desired video URL
-    output_file = os.path.join(SAVE_DIR, "Morocco vs Spain - Full Penalty Shootout FIFA World Cup 2022.mp4")
+    video_url = "https://youtu.be/vK-eA8EjQFk?si=GZnYFPi7iaD8TL83"  # Replace with your desired video URL
+    output_file = os.path.join(SAVE_DIR, "Croatia v Russia - Penalty Shoot-out - 2018 FIFAWorldCup QuaterFinal.mp4")
     
     download_video(video_url, output_file)
     print(f"Video downloaded and saved to {output_file}")
