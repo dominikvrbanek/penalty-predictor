@@ -18,9 +18,8 @@ def download_video(url, output_path):
 
 def main():
     # Example usage
-    video_url = "https://youtu.be/V_3QQjLkZgs?si=tc9S8qjpgj4TNE6W&t=340"  # Replace with your desired video URL
-    output_file = os.path.join(SAVE_DIR, "A THRILLING Penalty Shoot-Out - Man City v Sevilla - Super Cup - Highlights.mp4")  # Specify the output file path
-    
+    video_url = "https://youtu.be/EkAeFrTrZ38?si=iU4K4TzkwFZcrVp9"  # Replace with your desired video URL
+    output_file = os.path.join(SAVE_DIR, "CROATIA 0-0 SPAIN, UNL FINAL - The full penalty shootout.mp4")  # Change the output file name as needed
     download_video(video_url, output_file)
     print(f"Video downloaded and saved to {output_file}")
 

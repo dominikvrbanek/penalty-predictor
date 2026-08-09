@@ -5,7 +5,7 @@ import time
 import json
 
 # Video file name to look for in the raw data directory.
-VIDEO_FILE = "A THRILLING Penalty Shoot-Out - Man City v Sevilla - Super Cup - Highlights_30fps.mp4"
+VIDEO_FILE = "EVERY PENALTY KICK FROM EURO 2020.mp4"
 
 
 def get_project_root():
@@ -78,7 +78,9 @@ def run_viewer(video_path=None, output_json=None):
 
             # --- FIX 1: RESIZE THE FRAME ---
             # Scale the video down by 50% (or change to 30, 40, etc., depending on your screen)
-            scale_percent = 50
+            
+            #scale_percent = 50
+            scale_percent = 50  # Adjust this value to change the size of the displayed video
             width = int(frame.shape[1] * scale_percent / 100)
             height = int(frame.shape[0] * scale_percent / 100)
             frame = cv2.resize(frame, (width, height), interpolation=cv2.INTER_AREA)
