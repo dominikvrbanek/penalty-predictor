@@ -9,6 +9,12 @@ criterion = nn.CrossEntropyLoss(weight=weights.to(device))
 
 # You'll use these later in your loss function
 # Inverse frequency weighting
+'''
+Total clips after exclusion: 832
+Direction distribution: Counter({'R': 406, 'L': 337, 'C': 89})
+Foot distribution: Counter({'right': 584, 'left': 248})
+
+'''
 total = 832
 weights = {
     'L': total / (3 * 337),   # 0.823
