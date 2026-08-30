@@ -1,7 +1,7 @@
 # src/train.py
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, WeightedRandomSampler
+from torch.utils.data import DataLoader
 import numpy as np
 import os
 
@@ -15,9 +15,9 @@ MODELS_DIR = "models"
 os.makedirs(MODELS_DIR, exist_ok=True)
 
 BATCH_SIZE = 32
-EPOCHS = 50
-LEARNING_RATE = 1e-3  # revert to previous learning rate that worked
-WARMUP_EPOCHS = 3
+EPOCHS = 100
+LEARNING_RATE = 3e-4      # lower than before for fine-tuning
+PATIENCE = 15
 HIDDEN_SIZE = 128
 NUM_LAYERS = 2
 DROPOUT = 0.3
@@ -60,12 +60,25 @@ model = PenaltyLSTM(
 # Use loss weighting only (no label smoothing for now)
 criterion = nn.CrossEntropyLoss(weight=weights)
 optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
-# Monitor validation accuracy (higher is better). Remove `verbose` for compatibility.
-scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=3)
+# Monitor validation F1 (higher is better). Be more aggressive reducing LR when stuck.
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+    optimizer, mode='max', factor=0.3, patience=5, min_lr=1e-6
+)
 
 # -- Training Loop --
 best_val_acc = 0.0
 best_f1 = 0.0
+epochs_no_improve = 0
+
+# If a best checkpoint exists, load it to continue training from that point
+checkpoint_path = os.path.join(MODELS_DIR, "best_model.pth")
+if os.path.exists(checkpoint_path):
+    ckpt = torch.load(checkpoint_path, map_location=device)
+    model.load_state_dict(ckpt.get("model_state_dict", model.state_dict()))
+    if "optimizer_state_dict" in ckpt:
+        optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+    best_f1 = ckpt.get("f1", best_f1)
+    print(f"Loaded checkpoint from epoch {ckpt.get('epoch', 'N/A')} with F1 {best_f1:.3f}")
 
 def macro_f1(preds, labels, n_classes=3):
     f1s = []
@@ -82,12 +95,6 @@ def macro_f1(preds, labels, n_classes=3):
     return float(np.mean(f1s))
 
 for epoch in range(EPOCHS):
-    # LR warmup: scale up linearly over first few epochs
-    if epoch < WARMUP_EPOCHS:
-        warmup_scale = float(epoch + 1) / WARMUP_EPOCHS
-        for pg in optimizer.param_groups:
-            pg["lr"] = LEARNING_RATE * warmup_scale
-
     # Train
     model.train()
     train_loss, train_correct, train_total = 0, 0, 0
@@ -152,12 +159,14 @@ for epoch in range(EPOCHS):
     # Step scheduler on F1 (we're optimizing for F1)
     scheduler.step(f1)
 
-    # Save best model based on Macro F1
+    # Save best model based on Macro F1 and implement early stopping
     if f1 > best_f1:
         best_f1 = f1
+        epochs_no_improve = 0
         torch.save({
             "epoch": epoch,
             "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
             "val_acc": val_acc,
             "f1": f1,
             "config": {
@@ -168,6 +177,11 @@ for epoch in range(EPOCHS):
                 "dropout": DROPOUT
             }
         }, os.path.join(MODELS_DIR, "best_model.pth"))
-        print(f"Saved new best model with Macro F1: {f1:.3f}")
+        print(f"  ✓ Saved best model — F1: {f1:.3f}, Val Acc: {val_acc:.1%}")
+    else:
+        epochs_no_improve += 1
+        if epochs_no_improve >= PATIENCE:
+            print(f"\nEarly stopping at epoch {epoch+1} — no improvement for {PATIENCE} epochs")
+            break
 
-print(f"\nTraining complete. Best validation accuracy: {best_val_acc:.1%}")
+print(f"\nTraining complete. Best F1: {best_f1:.3f}")
