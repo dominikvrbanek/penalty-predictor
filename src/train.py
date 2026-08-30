@@ -1,7 +1,7 @@
 # src/train.py
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 import numpy as np
 import os
 
@@ -16,7 +16,8 @@ os.makedirs(MODELS_DIR, exist_ok=True)
 
 BATCH_SIZE = 32
 EPOCHS = 50
-LEARNING_RATE = 1e-3
+LEARNING_RATE = 1e-3  # revert to previous learning rate that worked
+WARMUP_EPOCHS = 3
 HIDDEN_SIZE = 128
 NUM_LAYERS = 2
 DROPOUT = 0.3
@@ -27,24 +28,36 @@ print(f"Training on {device}")
 # --- Data ---
 train_ds, val_ds, test_ds = load_datasets(LABELS_FILE, KEYPOINTS_DIR)
 
+# Count actual classes in training set and use loss re-weighting only
+from collections import Counter
+train_labels = [int(train_ds[i][1].item()) for i in range(len(train_ds))]
+counts = Counter(train_labels)
+print(f"Training class counts: L={counts[0]}, C={counts[1]}, R={counts[2]}")
+
+# OPTION A: Use loss weights only (no sampler)
 train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True)
 val_loader = DataLoader(val_ds, batch_size=BATCH_SIZE, shuffle=False)
 
-# -- Class weights for CrossEntropyLoss based on distribution check
-#weights = torch.tensor([0.823, 3.115, 0.683], dtype=torch.float32).to(device)  # L, C, R order
-
-# More balanced weights — still upweights C but not as aggressively
-weights = torch.tensor([1.0, 2.0, 0.8], dtype=torch.float32).to(device)
+# Compute weights from actual training counts
+total_train = len(train_labels)
+n_classes = 3
+weights = torch.tensor([
+    total_train / (n_classes * counts[0]),
+    total_train / (n_classes * counts[1]),
+    total_train / (n_classes * counts[2]),
+], dtype=torch.float32).to(device)
+print(f"Class weights: L={weights[0]:.3f}, C={weights[1]:.3f}, R={weights[2]:.3f}")
 
 # -- Model, Loss, Optimizer --
 model = PenaltyLSTM(
-    input_size=8,   # <-- changed from 30
+    input_size=8, # I think that its still 8 not 30
     hidden_size=HIDDEN_SIZE,
     num_layers=NUM_LAYERS,
     num_classes=3,
     dropout=DROPOUT
 ).to(device)
 
+# Use loss weighting only (no label smoothing for now)
 criterion = nn.CrossEntropyLoss(weight=weights)
 optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 # Monitor validation accuracy (higher is better). Remove `verbose` for compatibility.
@@ -52,8 +65,29 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', fa
 
 # -- Training Loop --
 best_val_acc = 0.0
+best_f1 = 0.0
+
+def macro_f1(preds, labels, n_classes=3):
+    f1s = []
+    preds = np.array(preds)
+    labels = np.array(labels)
+    for c in range(n_classes):
+        tp = ((preds == c) & (labels == c)).sum()
+        fp = ((preds == c) & (labels != c)).sum()
+        fn = ((preds != c) & (labels == c)).sum()
+        precision = tp / (tp + fp + 1e-8)
+        recall = tp / (tp + fn + 1e-8)
+        f1 = 2 * precision * recall / (precision + recall + 1e-8)
+        f1s.append(f1)
+    return float(np.mean(f1s))
 
 for epoch in range(EPOCHS):
+    # LR warmup: scale up linearly over first few epochs
+    if epoch < WARMUP_EPOCHS:
+        warmup_scale = float(epoch + 1) / WARMUP_EPOCHS
+        for pg in optimizer.param_groups:
+            pg["lr"] = LEARNING_RATE * warmup_scale
+
     # Train
     model.train()
     train_loss, train_correct, train_total = 0, 0, 0
@@ -106,28 +140,34 @@ for epoch in range(EPOCHS):
             print(f"  {name}: {cls_acc:.1%}", end="   ")
     print()
 
+    # Macro F1 on validation set
+    f1 = macro_f1(val_preds_all, val_labels_all)
+    print(f"  Macro F1: {f1:.3f}")
+
     print(f"Epoch {epoch+1:02d}/{EPOCHS} |"
           f"Loss: {avg_loss:.4f}  |"
           f"Train Acc: {train_acc:.1%} |"
           f"Val Acc: {val_acc:.1%}")
 
-    scheduler.step(val_acc)
+    # Step scheduler on F1 (we're optimizing for F1)
+    scheduler.step(f1)
 
-    # Save best model
-    if val_acc > best_val_acc:
-        best_val_acc = val_acc
+    # Save best model based on Macro F1
+    if f1 > best_f1:
+        best_f1 = f1
         torch.save({
             "epoch": epoch,
             "model_state_dict": model.state_dict(),
             "val_acc": val_acc,
+            "f1": f1,
             "config": {
-                "input_size": 30,
+                "input_size": 8,
                 "hidden_size": HIDDEN_SIZE,
                 "num_layers": NUM_LAYERS,
                 "num_classes": 3,
                 "dropout": DROPOUT
             }
         }, os.path.join(MODELS_DIR, "best_model.pth"))
-        print(f"Saved new best model with val acc: {val_acc:.1%}")
+        print(f"Saved new best model with Macro F1: {f1:.3f}")
 
 print(f"\nTraining complete. Best validation accuracy: {best_val_acc:.1%}")
